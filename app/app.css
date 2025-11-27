@@ -58,6 +58,59 @@ body {
   li:hover {
     background: #dadbf9;
   }
+
+  /* word card styles */
+  .word-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+    align-items: stretch;
+  }
+
+  .word-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .word-main {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .word-title {
+    font-weight: 700;
+    font-size: 1.05rem;
+    margin-bottom: 6px;
+  }
+
+  .word-meaning, .word-example, .word-category {
+    font-size: 0.95rem;
+    color: #333;
+    margin-bottom: 4px;
+  }
+
+  .word-img-wrap {
+    width: 96px;
+    height: 96px;
+    flex: 0 0 96px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 6px;
+    background: #fafafa;
+    border: 1px solid #eee;
+  }
+
+  .word-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
   
   a {
     font-weight: 800;
