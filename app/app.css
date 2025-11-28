@@ -3,10 +3,10 @@ body {
     background: linear-gradient(180deg, rgb(117, 81, 194), rgb(255, 255, 255));
     display: flex;
     font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-    height: 100vh;
-    width: 100vw;
-    justify-content: center;
-    align-items: center;
+    min-height: 100vh;
+    width: 100%;
+    justify-content: center; /* horizontal centering */
+    align-items: flex-start;  /* don't vertically center — allow top flow */
   }
   
   main {
@@ -115,4 +115,127 @@ body {
   a {
     font-weight: 800;
     text-decoration: none;
+  }
+
+  /* minimal flashcard UI styles */
+  .flashcards-container {
+    max-width: 760px;
+    width: 92vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin: 12px auto;
+  }
+
+  .card {
+    width: 100%;
+    max-width: 640px;
+    height: 320px;
+    perspective: 900px;
+    cursor: pointer;
+  }
+
+  .card-inner {
+    transition: transform 0.55s ease;
+    transform-style: preserve-3d;
+    position: relative;
+    height: 100%;
+  }
+
+  .card.flipped .card-inner {
+    transform: rotateY(180deg);
+  }
+
+  .card-front, .card-back {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backface-visibility: hidden;
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+    color: #111;
+  }
+
+  .card-back {
+    transform: rotateY(180deg);
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .word-large {
+    font-size: 2.1rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+
+  .word-meaning, .word-example {
+    font-size: 1.05rem;
+    color: #222;
+    margin-bottom: 6px;
+  }
+
+  .card-back-image-wrap {
+    width: 100%;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    overflow: hidden;
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.0));
+  }
+
+  .card-back-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 6px;
+  }
+
+  .controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .card-meta {
+    color: rgba(0,0,0,0.6);
+    font-size: 0.85rem;
+  }
+
+  /* answer controls */
+  .answer-controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  .answer-controls .btn-correct {
+    background: #16a34a;
+    color: white;
+    border: 1px solid rgba(10,80,30,0.12);
+  }
+
+  .answer-controls .btn-incorrect {
+    background: #ef4444;
+    color: white;
+    border: 1px solid rgba(120,10,10,0.12);
+  }
+
+  .result-panel {
+    background: rgba(255,255,255,0.96);
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: 0 8px 30px rgba(12,12,20,0.12);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
   }
