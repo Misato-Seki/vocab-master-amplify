@@ -1,4 +1,8 @@
 import type { Handler } from "aws-lambda";
+import {
+  BedrockRuntimeClient,
+  InvokeModelCommand,
+} from "@aws-sdk/client-bedrock-runtime";
 
 interface GenerateWordRequest {
   word: string;
@@ -9,6 +13,11 @@ interface GenerateWordResponse {
   example: string;
   imageUrl: string;
 }
+
+// Bedrock クライアントを初期化
+const bedrockClient = new BedrockRuntimeClient({
+  region: "eu-north-1",
+});
 
 export const handler: Handler = async (event) => {
   console.log("Event received:", JSON.stringify(event));
@@ -26,129 +35,104 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    // Generate content using Claude
+    // Generate meaning and example using Claude
     console.log(`Generating content for word: ${word}`);
 
-    const claudeResponse = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY || "",
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        messages: [
-          {
-            role: "user",
-            content: `For the English word "${word}", provide:
-                1. A clear, concise meaning/definition in English
-                2. A practical example sentence using this word
-                3. A simple, vivid image description (in English, one sentence, suitable for AI image generation)
+    const claudePrompt = `For the word "${word}", provide:
+      1. A clear, concise meaning/definition in English
+      2. A practical example sentence using this word
+      3. A simple, vivid description for an image that represents this word (in English, one sentence)
 
-                Example format:
-                - For "serendipity": "A peaceful scene of someone discovering something beautiful by chance"
-                - For "resilience": "A strong tree standing firmly against powerful winds"
+      Example format:
+      - For "serendipity": "A peaceful scene of someone discovering something beautiful by chance, warm lighting, dreamy atmosphere"
+      - For "resilience": "A strong tree standing firmly against powerful winds, dramatic sky, inspiring composition"
 
-                Respond ONLY in JSON format with no preamble or markdown:
-                {
-                "meaning": "Meaning in English",
-                "example": "Example sentence using the word",
-                "imagePrompt": "A vivid, simple description for image generation"
-                }`,
-          },
-        ],
-      }),
+      Respond ONLY in JSON format with no preamble or markdown:
+      {
+        "meaning": "Meaning of the word in English",
+        "example": "Example sentence using the word",
+        "imagePrompt": "A vivid, detailed description for image generation"
+      }`;
+
+    const claudePayload = {
+      anthropic_version: "bedrock-2023-05-31",
+      max_tokens: 1000,
+      messages: [
+        {
+          role: "user",
+          content: claudePrompt,
+        },
+      ],
+    };
+
+    const claudeCommand = new InvokeModelCommand({
+      modelId: "anthropic.claude-3-5-sonnet-20241022-v2:0",
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify(claudePayload),
     });
 
-    if (!claudeResponse.ok) {
-      throw new Error(`Claude API error: ${claudeResponse.statusText}`);
-    }
+    console.log("Calling Claude API...");
+    const claudeResponse = await bedrockClient.send(claudeCommand);
+    const claudeResult = JSON.parse(
+      new TextDecoder().decode(claudeResponse.body)
+    );
 
-    const claudeData = await claudeResponse.json();
-    const textContent = claudeData.content.find((c: any) => c.type === "text")?.text || "";
+    console.log("Claude response received");
+
+    const textContent =
+      claudeResult.content.find((c: any) => c.type === "text")?.text || "";
     const cleanText = textContent.replace(/```json|```/g, "").trim();
     const generated = JSON.parse(cleanText);
 
     console.log("Generated content:", generated);
 
-    // Generate image using Replicate
-    const imagePrompt = generated.imagePrompt || `A simple, clear illustration of the concept of ${word}`;
+    // Generate image using Stability AI
+    const imagePrompt = generated.imagePrompt || `A simple, clear illustration representing the concept of ${word}`;
 
     console.log(`Generating image with prompt: ${imagePrompt}`);
 
-    // Generate prediction
-    const replicateResponse = await fetch("https://api.replicate.com/v1/predictions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}`,
-      },
-      body: JSON.stringify({
-        version: "39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b", // SDXL Lightning
-        input: {
-          prompt: imagePrompt,
-          negative_prompt: "blurry, bad quality, distorted, ugly, low resolution, text, watermark",
-          width: 512,
-          height: 512,
-          num_outputs: 1,
-          num_inference_steps: 4,
-          guidance_scale: 7.5,
+    const stabilityPayload = {
+      text_prompts: [
+        {
+          text: imagePrompt,
+          weight: 1,
         },
-      }),
+        {
+          text: "blurry, bad quality, distorted, ugly, low resolution, text, watermark, duplicate",
+          weight: -1,
+        },
+      ],
+      cfg_scale: 7,
+      steps: 30,
+      seed: Math.floor(Math.random() * 1000000),
+      width: 512,
+      height: 512,
+      samples: 1,
+    };
+
+    const stabilityCommand = new InvokeModelCommand({
+      modelId: "stability.stable-diffusion-xl-v1",
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify(stabilityPayload),
     });
 
-    if (!replicateResponse.ok) {
-      throw new Error(`Replicate API error: ${replicateResponse.statusText}`);
-    }
+    console.log("Calling Stability AI...");
+    const stabilityResponse = await bedrockClient.send(stabilityCommand);
+    const stabilityResult = JSON.parse(
+      new TextDecoder().decode(stabilityResponse.body)
+    );
 
-    const prediction = await replicateResponse.json();
-    console.log("Prediction created:", prediction.id);
+    console.log("Image generation completed");
 
-    // Wait for the image genaration to complete
-    let imageUrl = "";
-    let attempts = 0;
-    const maxAttempts = 30; // Wait up to 60 seconds
+    // Encode image to base64 data URL
+    const imageBase64 = stabilityResult.artifacts[0].base64;
+    const imageUrl = `data:image/png;base64,${imageBase64}`;
 
-    while (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for 2 seconds
+    console.log("Image size (bytes):", imageBase64.length);
 
-      const statusResponse = await fetch(
-        `https://api.replicate.com/v1/predictions/${prediction.id}`,
-        {
-          headers: {
-            "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!statusResponse.ok) {
-        throw new Error(`Status check failed: ${statusResponse.statusText}`);
-      }
-
-      const status = await statusResponse.json();
-      console.log(`Attempt ${attempts + 1}: Status = ${status.status}`);
-
-      if (status.status === "succeeded") {
-        imageUrl = status.output[0];
-        console.log("Image generated successfully:", imageUrl);
-        break;
-      } else if (status.status === "failed") {
-        throw new Error(`Image generation failed: ${status.error}`);
-      } else if (status.status === "canceled") {
-        throw new Error("Image generation was canceled");
-      }
-
-      attempts++;
-    }
-
-    if (!imageUrl) {
-      throw new Error("Image generation timed out after 60 seconds");
-    }
-
-    // Return the generated content
+    // Return result
     const result: GenerateWordResponse = {
       meaning: generated.meaning,
       example: generated.example,
@@ -165,6 +149,14 @@ export const handler: Handler = async (event) => {
     };
   } catch (error) {
     console.error("Error generating word content:", error);
+
+    // Error details
+    if (error instanceof Error) {
+      console.error("Error name:", error.name);
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
+
     return {
       statusCode: 500,
       body: JSON.stringify({
