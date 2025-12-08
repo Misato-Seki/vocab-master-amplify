@@ -50,7 +50,7 @@ export default function App() {
   }
 
   function goToFlashcard() {
-    router.push("/flashcard");
+    router.push("/flashcards");
   }
 
   async function submitNewWord(e?: FormEvent) {
