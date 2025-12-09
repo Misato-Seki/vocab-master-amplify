@@ -19,7 +19,7 @@ backend.generateWordContent.resources.lambda.addToRolePolicy(
     ],
     resources: [
       // Claude 3.5 Sonnet v2
-      'arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0',
+      'arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-4-sonnet-20240514-v1:0',
       // Stable Diffusion XL
       'arn:aws:bedrock:us-east-1::foundation-model/stability.stable-diffusion-xl-v1',
     ],

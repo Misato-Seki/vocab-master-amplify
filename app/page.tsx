@@ -92,7 +92,7 @@ export default function App() {
 
       // エラーメッセージを詳細に表示
       const errorMessage = error instanceof Error ? error.message : String(error);
-      alert(`生成に失敗しました: ${errorMessage}\n\n確認事項:\n- AWS Bedrock のモデルアクセスが有効か\n- Lambda の IAM 権限が正しく設定されているか`);
+      alert(`Generation Failed: ${errorMessage}`);
     } finally {
       setIsGenerating(false);
     }

@@ -1,37 +1,25 @@
-import type { Handler } from "aws-lambda";
+import type { Schema } from "../../data/resource";
 import {
   BedrockRuntimeClient,
   InvokeModelCommand,
 } from "@aws-sdk/client-bedrock-runtime";
 
-interface GenerateWordRequest {
-  word: string;
-}
+// Using Amplify Gen 2 type definitions
+type GenerateWordContentHandler = Schema["generateWordContent"]["functionHandler"];
 
-interface GenerateWordResponse {
-  meaning: string;
-  example: string;
-  imageUrl: string;
-}
-
-// Bedrock クライアントを初期化
+// Initiate Bedrock client
 const bedrockClient = new BedrockRuntimeClient({
-  region: "eu-north-1",
+  region: "us-east-1",
 });
 
-export const handler: Handler = async (event) => {
+export const handler: GenerateWordContentHandler = async (event) => {
   console.log("Event received:", JSON.stringify(event));
 
-  const body: GenerateWordRequest =
-    typeof event.body === "string" ? JSON.parse(event.body) : event.body;
-
-  const { word } = body;
+  // Amplify Gen 2 uses event.arguments
+  const { word } = event.arguments;
 
   if (!word) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Word is required" }),
-    };
+    throw new Error("Word is required");
   }
 
   try {
@@ -66,7 +54,7 @@ export const handler: Handler = async (event) => {
     };
 
     const claudeCommand = new InvokeModelCommand({
-      modelId: "anthropic.claude-3-5-sonnet-20241022-v2:0",
+      modelId: "anthropic.claude-4-sonnet-20240514-v1:0",
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify(claudePayload),
@@ -74,6 +62,7 @@ export const handler: Handler = async (event) => {
 
     console.log("Calling Claude API...");
     const claudeResponse = await bedrockClient.send(claudeCommand);
+    console.log("Claude response successfully received."); // <-- 追加
     const claudeResult = JSON.parse(
       new TextDecoder().decode(claudeResponse.body)
     );
@@ -118,7 +107,9 @@ export const handler: Handler = async (event) => {
       body: JSON.stringify(stabilityPayload),
     });
 
-    console.log("Calling Stability AI...");
+    // console.log("Calling Stability AI...");
+    console.log("Generated imagePrompt from Claude:", imagePrompt); // <-- 追加
+    console.log("Starting Stability AI call with modelId:", stabilityCommand.input.modelId); // <-- 追加
     const stabilityResponse = await bedrockClient.send(stabilityCommand);
     const stabilityResult = JSON.parse(
       new TextDecoder().decode(stabilityResponse.body)
@@ -132,20 +123,11 @@ export const handler: Handler = async (event) => {
 
     console.log("Image size (bytes):", imageBase64.length);
 
-    // Return result
-    const result: GenerateWordResponse = {
+    // Return result (Amplify Gen 2 では直接オブジェクトを返す)
+    return {
       meaning: generated.meaning,
       example: generated.example,
       imageUrl: imageUrl,
-    };
-
-    return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
-      body: JSON.stringify(result),
     };
   } catch (error) {
     console.error("Error generating word content:", error);
@@ -157,12 +139,8 @@ export const handler: Handler = async (event) => {
       console.error("Error stack:", error.stack);
     }
 
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
-        error: "Failed to generate content",
-        details: error instanceof Error ? error.message : String(error),
-      }),
-    };
+    throw new Error(
+      `Failed to generate content: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 };
