@@ -18,8 +18,9 @@ backend.generateWordContent.resources.lambda.addToRolePolicy(
       'bedrock:InvokeModelWithResponseStream',
     ],
     resources: [
-      // Claude 3.5 Sonnet v2
-      'arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-4-sonnet-20240514-v1:0',
+      // Claude 3.5 Sonnet v2 - Cross-region inference profile
+      // inference profileの正しいARN形式（アカウントIDを含む）
+      'arn:aws:bedrock:us-east-1:036354667834:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0',
       // Stable Diffusion XL
       'arn:aws:bedrock:us-east-1::foundation-model/stability.stable-diffusion-xl-v1',
     ],

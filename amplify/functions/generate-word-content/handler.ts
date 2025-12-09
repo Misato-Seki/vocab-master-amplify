@@ -4,10 +4,8 @@ import {
   InvokeModelCommand,
 } from "@aws-sdk/client-bedrock-runtime";
 
-// Using Amplify Gen 2 type definitions
 type GenerateWordContentHandler = Schema["generateWordContent"]["functionHandler"];
 
-// Initiate Bedrock client
 const bedrockClient = new BedrockRuntimeClient({
   region: "us-east-1",
 });
@@ -15,7 +13,6 @@ const bedrockClient = new BedrockRuntimeClient({
 export const handler: GenerateWordContentHandler = async (event) => {
   console.log("Event received:", JSON.stringify(event));
 
-  // Amplify Gen 2 uses event.arguments
   const { word } = event.arguments;
 
   if (!word) {
@@ -23,7 +20,6 @@ export const handler: GenerateWordContentHandler = async (event) => {
   }
 
   try {
-    // Generate meaning and example using Claude
     console.log(`Generating content for word: ${word}`);
 
     const claudePrompt = `For the word "${word}", provide:
@@ -53,8 +49,9 @@ export const handler: GenerateWordContentHandler = async (event) => {
       ],
     };
 
+    // Cross-region inference profileを使用
     const claudeCommand = new InvokeModelCommand({
-      modelId: "anthropic.claude-4-sonnet-20240514-v1:0",
+      modelId: "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify(claudePayload),
@@ -62,7 +59,8 @@ export const handler: GenerateWordContentHandler = async (event) => {
 
     console.log("Calling Claude API...");
     const claudeResponse = await bedrockClient.send(claudeCommand);
-    console.log("Claude response successfully received."); // <-- 追加
+    console.log("Claude response successfully received.");
+    
     const claudeResult = JSON.parse(
       new TextDecoder().decode(claudeResponse.body)
     );
@@ -107,9 +105,9 @@ export const handler: GenerateWordContentHandler = async (event) => {
       body: JSON.stringify(stabilityPayload),
     });
 
-    // console.log("Calling Stability AI...");
-    console.log("Generated imagePrompt from Claude:", imagePrompt); // <-- 追加
-    console.log("Starting Stability AI call with modelId:", stabilityCommand.input.modelId); // <-- 追加
+    console.log("Generated imagePrompt from Claude:", imagePrompt);
+    console.log("Starting Stability AI call with modelId:", stabilityCommand.input.modelId);
+    
     const stabilityResponse = await bedrockClient.send(stabilityCommand);
     const stabilityResult = JSON.parse(
       new TextDecoder().decode(stabilityResponse.body)
@@ -117,13 +115,11 @@ export const handler: GenerateWordContentHandler = async (event) => {
 
     console.log("Image generation completed");
 
-    // Encode image to base64 data URL
     const imageBase64 = stabilityResult.artifacts[0].base64;
     const imageUrl = `data:image/png;base64,${imageBase64}`;
 
     console.log("Image size (bytes):", imageBase64.length);
 
-    // Return result (Amplify Gen 2 では直接オブジェクトを返す)
     return {
       meaning: generated.meaning,
       example: generated.example,
@@ -132,7 +128,6 @@ export const handler: GenerateWordContentHandler = async (event) => {
   } catch (error) {
     console.error("Error generating word content:", error);
 
-    // Error details
     if (error instanceof Error) {
       console.error("Error name:", error.name);
       console.error("Error message:", error.message);
