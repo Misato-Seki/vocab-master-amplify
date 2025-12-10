@@ -40,12 +40,13 @@ export default function App() {
     meaning: "",
     example: "",
     image: "",
+    language: "japanese" as "japanese" | "finnish",
   });
 
   const router = useRouter();
 
   function openAddWordForm() {
-    setNewWord({ word: "", meaning: "", example: "", image: "" });
+    setNewWord({ word: "", meaning: "", example: "", image: "", language: "japanese" });
     setIsAddingWord(true);
   }
 
@@ -53,7 +54,7 @@ export default function App() {
     router.push("/flashcards");
   }
 
-  // 🚀 AI 自動生成機能 (Bedrock)
+  // 🚀 AI 自動生成機能 (OpenAI)
   async function generateWithAI() {
     if (!newWord.word) {
       alert("単語を入力してください");
@@ -61,12 +62,13 @@ export default function App() {
     }
 
     setIsGenerating(true);
-    setGenerationProgress("AI が意味・例文・画像を生成中... (10-20秒)");
+    const langLabel = newWord.language === "japanese" ? "日本語" : "フィンランド語";
+    setGenerationProgress(`${langLabel}学習者向けにAIが生成中... (10-20秒)`);
 
     try {
-      // Amplify の Query を呼び出し
       const { data, errors } = await client.queries.generateWordContent({
         word: newWord.word,
+        language: newWord.language,
       });
 
       if (errors) {
@@ -83,14 +85,12 @@ export default function App() {
           image: data.imageUrl,
         }));
 
-        // 成功メッセージを2秒表示
         setTimeout(() => setGenerationProgress(""), 2000);
       }
     } catch (error) {
       console.error("AI generation failed:", error);
       setGenerationProgress("");
 
-      // エラーメッセージを詳細に表示
       const errorMessage = error instanceof Error ? error.message : String(error);
       alert(`Generation Failed: ${errorMessage}`);
     } finally {
@@ -108,9 +108,10 @@ export default function App() {
         meaning: newWord.meaning || undefined,
         example: newWord.example || undefined,
         image: newWord.image || undefined,
+        language: newWord.language || undefined,
       });
       setIsAddingWord(false);
-      setNewWord({ word: "", meaning: "", example: "", image: "" });
+      setNewWord({ word: "", meaning: "", example: "", image: "", language: "japanese" });
     } catch (err) {
       console.error("Create word failed", err);
       alert("Failed to create word. See console for details.");
@@ -127,13 +128,33 @@ export default function App() {
       {isAddingWord && (
         <form onSubmit={submitNewWord} style={{ border: "1px solid #ddd", padding: 12, marginTop: 8 }}>
           <h3>New Word</h3>
+
+          {/* 言語選択 */}
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "block", marginBottom: 4, fontWeight: "bold" }}>
+              学習言語 / Learning Language:
+            </label>
+            <select
+              value={newWord.language}
+              onChange={(e) => setNewWord((s) => ({ ...s, language: e.target.value as "japanese" | "finnish" }))}
+              disabled={isGenerating}
+              style={{ padding: 8, fontSize: "1rem", width: "100%" }}
+            >
+              <option value="japanese">🇯🇵 日本語 (Japanese) - for Finnish speakers</option>
+              <option value="finnish">🇫🇮 Suomi (Finnish) - for Japanese speakers</option>
+            </select>
+          </div>
+
           <div>
             <label>
-              Word: <input
+              {newWord.language === "japanese" ? "日本語の単語 / Japanese Word:" : "フィンランド語の単語 / Finnish Word:"}
+              <input
                 required
                 value={newWord.word}
                 onChange={(e) => setNewWord((s) => ({ ...s, word: e.target.value }))}
                 disabled={isGenerating}
+                placeholder={newWord.language === "japanese" ? "例: 勉強" : "esim: opiskella"}
+                style={{ width: "100%", padding: 8, fontSize: "1rem" }}
               />
             </label>
           </div>
@@ -149,9 +170,11 @@ export default function App() {
                 color: "white",
                 cursor: isGenerating ? "not-allowed" : "pointer",
                 fontWeight: "bold",
+                padding: "12px 24px",
+                fontSize: "1rem",
               }}
             >
-              {isGenerating ? "🤖 生成中..." : "🚀 AI自動生成 (Bedrock)"}
+              {isGenerating ? "🤖 生成中..." : "🚀 AI自動生成 (OpenAI)"}
             </button>
             {generationProgress && (
               <div style={{ marginTop: 4, fontSize: "0.9em", color: "#666" }}>
@@ -162,17 +185,22 @@ export default function App() {
 
           <div>
             <label>
-              Meaning: <input
+              {newWord.language === "japanese" ? "意味（フィンランド語）/ Meaning (Finnish):" : "意味（日本語）/ Meaning (Japanese):"}
+              <input
                 value={newWord.meaning}
                 onChange={(e) => setNewWord((s) => ({ ...s, meaning: e.target.value }))}
+                style={{ width: "100%", padding: 8 }}
               />
             </label>
           </div>
           <div>
             <label>
-              Example: <input
+              {newWord.language === "japanese" ? "例文（日本語・ふりがな付き）/ Example (Japanese with furigana):" : "例文（フィンランド語）/ Example (Finnish):"}
+              <input
                 value={newWord.example}
                 onChange={(e) => setNewWord((s) => ({ ...s, example: e.target.value }))}
+                style={{ width: "100%", padding: 8 }}
+                placeholder={newWord.language === "japanese" ? "例: 私（わたし）は勉強（べんきょう）します" : "esim: Minä opiskelen"}
               />
             </label>
           </div>
@@ -217,14 +245,17 @@ export default function App() {
         </form>
       )}
 
-      <div>Word</div>
+      <div>Words</div>
       <ul>
         {words.map((word) => {
+          const langFlag = word.language === "japanese" ? "🇯🇵" : word.language === "finnish" ? "🇫🇮" : "";
           return (
             <li key={word.id} className="word-item">
               <div className="word-row">
                 <div className="word-main">
-                  <div className="word-title">{word.word}</div>
+                  <div className="word-title">
+                    {langFlag} {word.word}
+                  </div>
                   {word.meaning && <div className="word-meaning">Meaning: {word.meaning}</div>}
                   {word.example && <div className="word-example">Example: {word.example}</div>}
                 </div>

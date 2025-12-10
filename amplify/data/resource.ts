@@ -8,6 +8,7 @@ const schema = a.schema({
       meaning: a.string(),
       example: a.string(),
       image: a.string(),
+      language: a.string(), // "japanese" or "finnish"
       logs: a.hasMany("Log", "wordId"),
     }).authorization(allow => [allow.owner()]),
 
@@ -24,6 +25,7 @@ const schema = a.schema({
     .query()
     .arguments({
       word: a.string().required(),
+      language: a.string().required(), // "japanese" or "finnish"
     })
     .returns(a.customType({
       meaning: a.string().required(),
