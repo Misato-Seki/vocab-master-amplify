@@ -1,4 +1,5 @@
-import type { Schema } from "../../data/resource";
+import type { Schema } from "../../data/resource";  
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
 type GenerateWordContentHandler = Schema["generateWordContent"]["functionHandler"];
 
@@ -147,8 +148,28 @@ Respond ONLY in JSON format:
           console.log("✅ DALL-E response received");
           
           if (imageData.data && imageData.data[0] && imageData.data[0].url) {
-            imageUrl = imageData.data[0].url;
+            const generatedImageUrl = imageData.data[0].url;
             console.log("✅ Image generation completed successfully");
+
+            // 画像をダウンロード
+            const imageFetchResponse = await fetch(generatedImageUrl);
+            if (!imageFetchResponse.ok) {
+              throw new Error(`Failed to download image: ${imageFetchResponse.status}`);
+            }
+            const imageBuffer = Buffer.from(await imageFetchResponse.arrayBuffer());
+
+            // S3にアップロード
+            const s3Key = `word-images/${word}-${Date.now()}.png`;
+            const s3Client = new S3Client({ region: process.env.AWS_REGION });
+            await s3Client.send(new PutObjectCommand({
+              Bucket: process.env.STORAGE_WORDIMAGES_BUCKETNAME,
+              Key: s3Key,
+              Body: imageBuffer,
+              ContentType: 'image/png',
+            }));
+
+            imageUrl = s3Key;
+            console.log("✅ Image uploaded to S3 successfully");
           } else {
             console.error("❌ Unexpected response structure:", imageData);
           }

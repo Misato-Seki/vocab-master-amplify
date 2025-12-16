@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { generateClient } from "aws-amplify/data";
+import { getUrl } from "aws-amplify/storage";
 import type { Schema } from "@/amplify/data/resource";
 import { Amplify } from "aws-amplify";
 import outputs from "@/amplify_outputs.json";
@@ -9,15 +10,39 @@ import outputs from "@/amplify_outputs.json";
 Amplify.configure(outputs);
 const client = generateClient<Schema>();
 
+// S3キーから署名付きURLを取得するヘルパー関数
+async function getImageUrl(s3Key: string): Promise<string> {
+  if (!s3Key) return "";
+  
+  // すでにHTTP(S)のURLの場合はそのまま返す(後方互換性)
+  if (s3Key.startsWith('http://') || s3Key.startsWith('https://')) {
+    return s3Key;
+  }
+  
+  try {
+    const result = await getUrl({
+      path: s3Key,
+      options: {
+        validateObjectExistence: false,
+        expiresIn: 3600, // 1時間有効
+      },
+    });
+    return result.url.toString();
+  } catch (error) {
+    console.error("Failed to get image URL:", error);
+    return "";
+  }
+}
+
 export default function FlashcardsPage() {
   const [words, setWords] = useState<Array<Schema["Word"]["type"]>>([]);
+  const [imageUrls, setImageUrls] = useState<Map<string, string>>(new Map());
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [results, setResults] = useState<Array<{ id?: string; isCorrect: boolean }>>([]);
   const [finished, setFinished] = useState(false);
 
   useEffect(() => {
-    // use observeQuery so we get updates live (matches the main page approach)
     const sub = client.models.Word.observeQuery().subscribe({
       next: (snapshot) => setWords([...snapshot.items] as any),
       error: (e) => console.error("observeQuery error", e),
@@ -25,6 +50,26 @@ export default function FlashcardsPage() {
 
     return () => sub.unsubscribe();
   }, []);
+
+  // 画像URLを解決する
+  useEffect(() => {
+    async function resolveImageUrls() {
+      const urlMap = new Map<string, string>();
+      
+      for (const word of words) {
+        if (word.image && word.id) {
+          const url = await getImageUrl(word.image);
+          urlMap.set(word.id, url);
+        }
+      }
+      
+      setImageUrls(urlMap);
+    }
+    
+    if (words.length > 0) {
+      resolveImageUrls();
+    }
+  }, [words]);
 
   if (!words || words.length === 0) {
     return (
@@ -39,16 +84,16 @@ export default function FlashcardsPage() {
   }
 
   const current = words[index];
+  const currentImageUrl = current?.id ? imageUrls.get(current.id) : "";
 
   function handleAnswer(isCorrect: boolean) {
     const id = current?.id;
 
     setResults((prev) => {
-      if (id && prev.some((r) => r.id === id)) return prev; // already answered
+      if (id && prev.some((r) => r.id === id)) return prev;
       return [...prev, { id, isCorrect }];
     });
 
-    // if we're on the last card, end round, otherwise advance
     if (index === words.length - 1) {
       setFinished(true);
       setFlipped(false);
@@ -68,7 +113,6 @@ export default function FlashcardsPage() {
   function nextCard() {
     setFlipped(false);
     setIndex((i) => (i + 1) % words.length);
-    // if we've looped back to 0 after last card, keep finished false — typical loop behavior
   }
 
   function prevCard() {
@@ -92,10 +136,9 @@ export default function FlashcardsPage() {
               <div className="word-large">{current.word}</div>
             </div>
             <div className="card-back">
-              {/* if image exists, show it at the top of the back */}
-              {current.image && (
+              {currentImageUrl && (
                 <div className="card-back-image-wrap">
-                  <img src={current.image} alt={current.word} className="card-back-image" />
+                  <img src={currentImageUrl} alt={current.word} className="card-back-image" />
                 </div>
               )}
 
@@ -117,7 +160,6 @@ export default function FlashcardsPage() {
           <button onClick={nextCard} aria-label="Next card">Next ▶</button>
         </div>
 
-        {/* Answer buttons: mark correct/incorrect; shows during the session (or after flip) */}
         {!finished && (
           <div className="answer-controls">
             <button
@@ -137,7 +179,6 @@ export default function FlashcardsPage() {
           </div>
         )}
 
-        {/* Result panel when finished */}
         {finished && (
           <div className="result-panel">
             <h3>Round complete</h3>

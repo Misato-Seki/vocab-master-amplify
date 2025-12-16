@@ -62,8 +62,8 @@ export default function App() {
     }
 
     setIsGenerating(true);
-    const langLabel = newWord.language === "japanese" ? "日本語" : "フィンランド語";
-    setGenerationProgress(`${langLabel}学習者向けにAIが生成中... (10-20秒)`);
+    // const langLabel = newWord.language === "japanese" ? "日本語" : "フィンランド語";
+    setGenerationProgress("Generating word contents... (10-20sec)");
 
     try {
       const { data, errors } = await client.queries.generateWordContent({
@@ -77,7 +77,7 @@ export default function App() {
       }
 
       if (data) {
-        setGenerationProgress("完了! ✨");
+        setGenerationProgress("Done! ✨");
         setNewWord(prev => ({
           ...prev,
           meaning: data.meaning,
@@ -122,7 +122,7 @@ export default function App() {
     <main style={{ padding: 16 }}>
       <button onClick={signOut}>Sign out</button>
       <h1>{user?.signInDetails?.loginId}'s flashcard</h1>
-      <button onClick={goToFlashcard}>Start Anki!</button>
+      <button onClick={goToFlashcard}>Start Studing!</button>
       <button onClick={openAddWordForm}>+ new word</button>
 
       {isAddingWord && (
@@ -132,7 +132,7 @@ export default function App() {
           {/* 言語選択 */}
           <div style={{ marginBottom: 12 }}>
             <label style={{ display: "block", marginBottom: 4, fontWeight: "bold" }}>
-              学習言語 / Learning Language:
+              学習言語 / Oppimiskieli:
             </label>
             <select
               value={newWord.language}
@@ -140,14 +140,14 @@ export default function App() {
               disabled={isGenerating}
               style={{ padding: 8, fontSize: "1rem", width: "100%" }}
             >
-              <option value="japanese">🇯🇵 日本語 (Japanese) - for Finnish speakers</option>
-              <option value="finnish">🇫🇮 Suomi (Finnish) - for Japanese speakers</option>
+              <option value="japanese">🇯🇵 日本語</option>
+              <option value="finnish">🇫🇮 Suomi</option>
             </select>
           </div>
 
           <div>
             <label>
-              {newWord.language === "japanese" ? "日本語の単語 / Japanese Word:" : "フィンランド語の単語 / Finnish Word:"}
+              単語 / Sana:
               <input
                 required
                 value={newWord.word}
@@ -174,7 +174,7 @@ export default function App() {
                 fontSize: "1rem",
               }}
             >
-              {isGenerating ? "🤖 生成中..." : "🚀 AI自動生成 (OpenAI)"}
+              {isGenerating ? "🤖 Generating..." : "🚀 AI Generate"}
             </button>
             {generationProgress && (
               <div style={{ marginTop: 4, fontSize: "0.9em", color: "#666" }}>
@@ -185,7 +185,7 @@ export default function App() {
 
           <div>
             <label>
-              {newWord.language === "japanese" ? "意味（フィンランド語）/ Meaning (Finnish):" : "意味（日本語）/ Meaning (Japanese):"}
+              意味/ Merkitys:
               <input
                 value={newWord.meaning}
                 onChange={(e) => setNewWord((s) => ({ ...s, meaning: e.target.value }))}
@@ -195,7 +195,7 @@ export default function App() {
           </div>
           <div>
             <label>
-              {newWord.language === "japanese" ? "例文（日本語・ふりがな付き）/ Example (Japanese with furigana):" : "例文（フィンランド語）/ Example (Finnish):"}
+              例文 / Esimerkkilause:
               <input
                 value={newWord.example}
                 onChange={(e) => setNewWord((s) => ({ ...s, example: e.target.value }))}
