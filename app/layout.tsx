@@ -22,7 +22,7 @@ export default function RootLayout({
     // </html>
         
     <html lang="en">
-      <body>      
+      <body style={{ padding: 16 }}>      
         <AuthenticatorWrapper>
           {children}
         </AuthenticatorWrapper>

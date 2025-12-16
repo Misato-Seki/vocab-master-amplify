@@ -121,7 +121,7 @@ export default function FlashcardsPage() {
   }
 
   return (
-    <main style={{ padding: 16 }}>
+    <main style={{ width: "100%" , maxWidth: 600, margin: "0 auto" }}>
       <h2>Flashcards</h2>
 
       <div className="flashcards-container">

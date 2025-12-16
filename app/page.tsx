@@ -3,6 +3,7 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { generateClient } from "aws-amplify/data";
+import { getUrl } from "aws-amplify/storage";
 import type { Schema } from "@/amplify/data/resource";
 import "./../app/app.css";
 import { Amplify } from "aws-amplify";
@@ -14,8 +15,33 @@ Amplify.configure(outputs);
 
 const client = generateClient<Schema>();
 
+// S3キーから署名付きURLを取得するヘルパー関数
+async function getImageUrl(s3Key: string): Promise<string> {
+  if (!s3Key) return "";
+  
+  // すでにHTTP(S)のURLの場合はそのまま返す(後方互換性)
+  if (s3Key.startsWith('http://') || s3Key.startsWith('https://')) {
+    return s3Key;
+  }
+  
+  try {
+    const result = await getUrl({
+      path: s3Key,
+      options: {
+        validateObjectExistence: false,
+        expiresIn: 3600, // 1時間有効
+      },
+    });
+    return result.url.toString();
+  } catch (error) {
+    console.error("Failed to get image URL:", error);
+    return "";
+  }
+}
+
 export default function App() {
   const [words, setWords] = useState<Array<Schema["Word"]["type"]>>([]);
+  const [imageUrls, setImageUrls] = useState<Map<string, string>>(new Map());
   const { user, signOut } = useAuthenticator();
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState("");
@@ -29,6 +55,26 @@ export default function App() {
   useEffect(() => {
     listWords();
   }, []);
+
+  // 画像URLを解決する
+  useEffect(() => {
+    async function resolveImageUrls() {
+      const urlMap = new Map<string, string>();
+      
+      for (const word of words) {
+        if (word.image && word.id) {
+          const url = await getImageUrl(word.image);
+          urlMap.set(word.id, url);
+        }
+      }
+      
+      setImageUrls(urlMap);
+    }
+    
+    if (words.length > 0) {
+      resolveImageUrls();
+    }
+  }, [words]);
 
   function deleteWord(id: string) {
     client.models.Word.delete({ id })
@@ -119,11 +165,11 @@ export default function App() {
   }
 
   return (
-    <main style={{ padding: 16 }}>
+    <main style={{ width: "100%", maxWidth: 600, margin: "0 auto"  }}>
       <button onClick={signOut}>Sign out</button>
-      <h1>{user?.signInDetails?.loginId}'s flashcard</h1>
-      <button onClick={goToFlashcard}>Start Studing!</button>
-      <button onClick={openAddWordForm}>+ new word</button>
+      <h1>Dashboard</h1>
+      <button onClick={goToFlashcard}>Start Studying!</button>
+      <button onClick={openAddWordForm}>+ New Word</button>
 
       {isAddingWord && (
         <form onSubmit={submitNewWord} style={{ border: "1px solid #ddd", padding: 12, marginTop: 8 }}>
@@ -245,10 +291,11 @@ export default function App() {
         </form>
       )}
 
-      <div>Words</div>
+      <h1>Words</h1>
       <ul>
         {words.map((word) => {
           const langFlag = word.language === "japanese" ? "🇯🇵" : word.language === "finnish" ? "🇫🇮" : "";
+          const imageUrl = word.id ? imageUrls.get(word.id) : "";
           return (
             <li key={word.id} className="word-item">
               <div className="word-row">
@@ -259,9 +306,9 @@ export default function App() {
                   {word.meaning && <div className="word-meaning">Meaning: {word.meaning}</div>}
                   {word.example && <div className="word-example">Example: {word.example}</div>}
                 </div>
-                {word.image && (
+                {imageUrl && (
                   <div className="word-img-wrap">
-                    <img src={word.image} alt={word.word} className="word-img" />
+                    <img src={imageUrl} alt={word.word} className="word-img" />
                   </div>
                 )}
               </div>

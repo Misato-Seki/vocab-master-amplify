@@ -26,6 +26,7 @@ body {
     cursor: pointer;
     transition: border-color 0.25s;
     color: white;
+    margin-bottom: 10px;
   }
   button:hover {
     border-color: #646cff;
