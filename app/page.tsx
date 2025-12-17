@@ -88,11 +88,13 @@ export default function App() {
     image: "",
     language: "japanese" as "japanese" | "finnish",
   });
+  const [previewImageUrl, setPreviewImageUrl] = useState("");
 
   const router = useRouter();
 
   function openAddWordForm() {
     setNewWord({ word: "", meaning: "", example: "", image: "", language: "japanese" });
+    setPreviewImageUrl("");
     setIsAddingWord(true);
   }
 
@@ -108,7 +110,6 @@ export default function App() {
     }
 
     setIsGenerating(true);
-    // const langLabel = newWord.language === "japanese" ? "日本語" : "フィンランド語";
     setGenerationProgress("Generating word contents... (10-20sec)");
 
     try {
@@ -130,6 +131,12 @@ export default function App() {
           example: data.example,
           image: data.imageUrl,
         }));
+
+        // プレビュー画像URLを取得
+        if (data.imageUrl) {
+          const url = await getImageUrl(data.imageUrl);
+          setPreviewImageUrl(url);
+        }
 
         setTimeout(() => setGenerationProgress(""), 2000);
       }
@@ -158,6 +165,7 @@ export default function App() {
       });
       setIsAddingWord(false);
       setNewWord({ word: "", meaning: "", example: "", image: "", language: "japanese" });
+      setPreviewImageUrl("");
     } catch (err) {
       console.error("Create word failed", err);
       alert("Failed to create word. See console for details.");
@@ -257,17 +265,18 @@ export default function App() {
                 onChange={(e) => setNewWord((s) => ({ ...s, image: e.target.value }))}
                 rows={3}
                 style={{ width: "100%", fontSize: "0.8em" }}
+                readOnly
               />
             </label>
           </div>
 
           {/* 画像プレビュー */}
-          {newWord.image && (
+          {previewImageUrl && (
             <div style={{ marginTop: 8, marginBottom: 8 }}>
               <strong>プレビュー:</strong>
               <div style={{ marginTop: 4 }}>
                 <img
-                  src={newWord.image}
+                  src={previewImageUrl}
                   alt="Preview"
                   style={{ maxWidth: 300, maxHeight: 300, borderRadius: 8, border: "1px solid #ddd" }}
                 />
@@ -282,6 +291,7 @@ export default function App() {
               onClick={() => {
                 setIsAddingWord(false);
                 setGenerationProgress("");
+                setPreviewImageUrl("");
               }}
               style={{ marginLeft: 8 }}
             >
