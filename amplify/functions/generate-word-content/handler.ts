@@ -158,11 +158,25 @@ Respond ONLY in JSON format:
             }
             const imageBuffer = Buffer.from(await imageFetchResponse.arrayBuffer());
 
-            // S3にアップロード
+            // S3にアップロード - リージョンを明示的に指定
+            const region = process.env.AWS_REGION || 'eu-north-1';
+            const bucketName = process.env.STORAGE_WORDIMAGES_BUCKETNAME;
+            
+            if (!bucketName) {
+              throw new Error("STORAGE_WORDIMAGES_BUCKETNAME environment variable is not set");
+            }
+
+            console.log(`Uploading to S3 bucket: ${bucketName} in region: ${region}`);
+            
             const s3Key = `word-images/${word}-${Date.now()}.png`;
-            const s3Client = new S3Client({ region: process.env.AWS_REGION });
+            const s3Client = new S3Client({ 
+              region: region,
+              // forcePathStyleオプションを追加（古いバケット名の場合に必要な場合があります）
+              forcePathStyle: false,
+            });
+            
             await s3Client.send(new PutObjectCommand({
-              Bucket: process.env.STORAGE_WORDIMAGES_BUCKETNAME,
+              Bucket: bucketName,
               Key: s3Key,
               Body: imageBuffer,
               ContentType: 'image/png',

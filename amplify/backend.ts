@@ -2,28 +2,34 @@ import { defineBackend } from '@aws-amplify/backend';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { auth } from './auth/resource.js';
 import { data } from './data/resource.js';
+import { storage } from './storage/resource.js';
 import { generateWordContent } from './functions/generate-word-content/resource.js';
 
 const backend = defineBackend({
   auth,
   data,
+  storage,
   generateWordContent,
 });
 
-// Accessibility for Bedrock from Lambda
-// backend.generateWordContent.resources.lambda.addToRolePolicy(
-//   new PolicyStatement({
-//     actions: [
-//       'bedrock:InvokeModel',
-//       'bedrock:InvokeModelWithResponseStream',
-//     ],
-//     resources: [
-//       // Claude 3.5 Sonnet v2 - 通常のモデル
-//       'arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0',
-//       // Stable Diffusion XL
-//       'arn:aws:bedrock:us-east-1::foundation-model/stability.stable-diffusion-xl-v1',
-//     ],
-//   })
-// );
+// Lambda関数にS3バケットへのアクセス権限を付与
+backend.generateWordContent.resources.lambda.addToRolePolicy(
+  new PolicyStatement({
+    actions: [
+      's3:PutObject',
+      's3:GetObject',
+      's3:DeleteObject',
+    ],
+    resources: [
+      `${backend.storage.resources.bucket.bucketArn}/word-images/*`,
+    ],
+  })
+);
+
+// 環境変数にS3バケット名を追加
+backend.generateWordContent.addEnvironment(
+  'STORAGE_WORDIMAGES_BUCKETNAME',
+  backend.storage.resources.bucket.bucketName
+);
 
 console.log('✅ Backend definition complete');
